@@ -1,0 +1,437 @@
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int menu() {
+    system("clear"); //para limpar o terminal
+    time_t agora,tempo_local_sp;
+    struct tm *tempo_local;
+    char data_atual[128];
+    char op[30],c0,c1;
+  
+    time(&agora);
+    tempo_local = localtime(&agora);
+    tempo_local_sp=tempo_local->tm_hour-3;
+    strftime(data_atual, sizeof(data_atual), "%d/%m/%Y", tempo_local);
+  
+  //função para o menu da agenda 
+
+  char ch,buffer[256];
+  printf("|=================================================|\n");
+  printf("|                       MENU                      |\n");       
+  printf("|=================================================|\n");
+  printf("|              Bem vindo a sua agenda!            |\n");
+  printf("|     \"Adicionar\" Para Adicionar uma tarefa       |\n");
+  printf("|    \"Visualizar\" Para visualizar suas tarefas    |\n");
+  printf("|        \"Editar\" Para editar suas tarefas        |\n");
+  printf("|       \"Excluir\" Para excluir suas tarefas       |\n");
+  printf("|               \"Sair\" para Sair                  |\n"); 
+  printf("|=================================================|\n");
+
+
+  if(tempo_local_sp<12){
+    printf("Bom dia,usuário!");
+    printf(" Hoje é: %s\n", data_atual);
+  }
+    else if(tempo_local_sp>=12 && tempo_local_sp<18){
+      printf("Boa Tarde,usuário!");
+      printf(" Hoje é: %s\n", data_atual);
+    }
+      else{
+        printf("Boa noite,usuário!");
+        printf(" Data atual: %s\n", data_atual);
+      }
+  
+   
+    printf("Digite a sua opção:");
+    fgets(op,30,stdin); //pega toda a string que o usuario escrever
+    if(op[0]==97){
+      op[0]-=32;
+    }
+      else if(op[0]==118){
+        op[0]-=32;
+      }
+      else if(op[0]==101){
+        op[0]-=32;
+      }
+      if(op[0]==115){
+        op[0]-=32;
+      }
+     
+    c0=op[0]; //pega o primeiro caracter da string;
+    c1=op[1]; //pega o segundo caracter da string;
+  
+     // printf("%s",op);
+     // printf("c0 = %c, c1 = %c\n", c0, c1);
+      switch(c0) {
+      case 'A': return 1;
+      case 'V': return 2;
+      case 'S': return 5;
+      case 'E':
+          switch(c1) {
+            case 'd': return 3;
+            case 'x': return 4;
+            default:
+              printf("Opção invalida!\n");
+              return -1;
+            }
+      default:
+        printf("Opção invalida!\n");
+        return -1;
+      }
+  }
+struct agenda{
+  char desc[100],dia[100],hora[10],status[10];
+};
+struct agenda dados;
+void atualizadorTarefas() {
+  FILE* tarefas = fopen("Tarefas.txt", "r");
+  FILE* tarefasNumeradas = fopen("TarefasNumeradas.txt", "w");
+
+  if (tarefas == NULL || tarefasNumeradas == NULL) {
+    printf("Não foi possível abrir os arquivos.\n");
+    exit(1);
+  }
+
+  int numero_tarefa = 0;
+  int linha_atual = 0;
+  char linha[100];
+
+  while (fgets(linha, sizeof(linha), tarefas)) {
+    linha_atual++;
+
+    if (linha_atual % 6 == 1) {
+      numero_tarefa++;
+      fprintf(tarefasNumeradas, "%dª Tarefa:\n", numero_tarefa);
+      printf("Tarefa %d:\n", numero_tarefa);
+      continue;  // Pula a impressão da linha original "Tarefa:"
+    }
+
+    fprintf(tarefasNumeradas, "%s", linha);
+    printf("%s", linha);
+  }
+
+  fclose(tarefas);
+  fclose(tarefasNumeradas);
+
+  // Substitui o conteúdo do arquivo original com as tarefas numeradas
+  remove("Tarefas.txt");
+  rename("TarefasNumeradas.txt", "Tarefas.txt");
+} 
+void Adicionar() {
+    struct agenda dados;
+
+    // Lendo a tarefa
+    printf("Digite o dia da semana: ");
+    fgets(dados.dia, 100, stdin);
+    dados.dia[strcspn(dados.dia, "\n")] = '\0'; // Remove o caractere de nova linha
+    printf("Digite a hora: ");
+    fgets(dados.hora, 100, stdin);
+    dados.hora[strcspn(dados.hora, "\n")] = '\0'; // Remove o caractere de nova linha
+    printf("Digite a descrição: ");
+    fgets(dados.desc, 100, stdin);
+    dados.desc[strcspn(dados.desc, "\n")] = '\0'; // Remove o caractere de nova linha
+
+    char status;
+    printf("Digite o status da tarefa (C para concluída, E para em progresso): ");
+    scanf(" %c", &status);
+    getchar(); // Limpa o caractere de nova linha do buffer
+
+    // Abre o arquivo para adicionar a tarefa
+    FILE *ft = fopen("Tarefas.txt", "a+");
+    if (ft == NULL) {
+        printf("Erro ao abrir o arquivo!\n");
+        exit(1);
+    }
+
+    // Conta o número de tarefas existentes no arquivo
+    int numero_tarefas = 0;
+    char linha[100];
+    while (fgets(linha, sizeof(linha), ft)) {
+        if (strstr(linha, "Tarefa:") != NULL) {
+            numero_tarefas++;
+        }
+    }
+
+    // Imprimindo a tarefa no arquivo
+    fprintf(ft, "%dª Tarefa:\n", numero_tarefas + 1);
+    fprintf(ft, "Dia da semana: %s\n", dados.dia);
+    fprintf(ft, "Hora da tarefa: %s\n", dados.hora);
+    fprintf(ft, "Descrição: %s\n", dados.desc);
+    fprintf(ft, "Status: ");
+    if (status == 'C' || status == 'c') {
+        fprintf(ft, "Concluída\n");
+    } else if (status == 'E' || status == 'e') {
+        fprintf(ft, "Em progresso\n");
+    } else {
+        fprintf(ft, "Indefinido\n");
+    }
+    fprintf(ft, "\n");
+
+    fclose(ft);
+}
+int Visualizar() {
+  FILE *ft = fopen("Tarefas.txt", "r");
+  char leitura[100];
+  int tarefaEncontrada = 0;
+
+  if (ft == NULL) {
+    printf("Erro ao abrir o arquivo.\n");
+    exit(1);
+  }
+
+  while (fgets(leitura, sizeof(leitura), ft)) {
+    printf("%s", leitura);
+    tarefaEncontrada = 1;
+  }
+
+  fclose(ft);
+
+  if (!tarefaEncontrada) {
+    printf("Nenhuma tarefa foi encontrada.\n");
+  }
+
+  return tarefaEncontrada;
+}
+void Editar() {
+  char linha[50];
+  char nova_tarefa[50];
+  int numero_tarefa;
+  int linha_atual = 0;
+  int numero_linha_desc, numero_linha_status;
+  char opcao;
+
+  FILE* tarefas = fopen("Tarefas.txt", "r");
+  FILE* tarefas_temp = fopen("Temporario.txt", "w");
+
+  if (tarefas == NULL) {
+    printf("Não foi possível abrir o arquivo.\n");
+    exit(1);
+  }
+
+  printf("Digite o número da tarefa que deseja editar: ");
+  scanf("%d", &numero_tarefa);
+  getchar(); // Consume o caractere de nova linha deixado no buffer de entrada
+
+  printf("Digite a opção que deseja editar (D para Descrição, S para Status): ");
+  scanf("%c", &opcao);
+  getchar(); // Consume o caractere de nova linha deixado no buffer de entrada
+
+  // Fórmula para transformar o número da tarefa digitado pelo usuário nas linhas da descrição e do status
+  numero_linha_desc = (5 * numero_tarefa - 2) + numero_tarefa;
+  numero_linha_status = 6 * numero_tarefa - 1;
+
+  if (opcao == 'D' || opcao == 'd') {
+    printf("Digite a nova descrição: ");
+    fgets(nova_tarefa, 50, stdin);
+
+    while (fgets(linha, 50, tarefas)) {
+      linha_atual++;
+
+      // Verifica se é a linha da descrição da tarefa a ser editada
+      if (linha_atual == numero_linha_desc) {
+        fprintf(tarefas_temp, "Descrição: %s", nova_tarefa);
+      } 
+      else {
+        fprintf(tarefas_temp, "%s", linha);
+      }
+    }
+  }
+    
+  else if (opcao == 'S' || opcao == 's') {
+    char novo_status[15];
+    printf("Digite o novo status (C para Concluído, E para Em progresso): ");
+    scanf("%s", novo_status);
+
+    while (fgets(linha, 50, tarefas)) {
+      linha_atual++;
+
+      // Verifica se é a linha do status da tarefa a ser editada
+      if (linha_atual == numero_linha_status) {
+        if (strcmp(novo_status, "C") == 0 || strcmp(novo_status, "c") == 0) {
+          fprintf(tarefas_temp, "Status: Concluída\n");
+        } 
+        else if (strcmp(novo_status, "E") == 0 || strcmp(novo_status, "e") == 0) {
+          fprintf(tarefas_temp, "Status: Em progresso\n");
+        } 
+        else {
+          fprintf(tarefas_temp, "%s", linha); // Mantém o status atual se o valor digitado for inválido
+        }
+      } 
+      else {
+        fprintf(tarefas_temp, "%s", linha);
+      }
+    }
+  }
+
+  fclose(tarefas);
+  fclose(tarefas_temp);
+
+  // Remove o arquivo original e renomeia o arquivo temporário
+  remove("Tarefas.txt");
+  rename("Temporario.txt", "Tarefas.txt");
+
+  printf("Tarefa editada com sucesso!\n");
+}
+void Excluir(int numero_tarefa) {
+  FILE* tarefas = fopen("Tarefas.txt", "r");
+  FILE* temporario = fopen("Temporario.txt", "w");
+
+  if (tarefas == NULL || temporario == NULL) {
+    printf("Não foi possível abrir os arquivos.\n");
+    exit(1);
+  }
+
+  int linha_atual = 0;
+  int linha_inicial = (numero_tarefa - 1) * 6 + 1;
+  char linha[100];
+
+  while (fgets(linha, sizeof(linha), tarefas)) {
+    linha_atual++;
+
+    if (linha_atual >= linha_inicial && linha_atual < linha_inicial + 6) {
+      // Ignora as linhas da tarefa a ser excluída
+      continue;
+    }
+
+    // Atualiza o número da tarefa na linha correspondente
+    if (linha_atual > linha_inicial + 6)
+      fprintf(temporario, "Tarefa:%s", linha + 1);
+    else
+      fputs(linha, temporario);
+  }
+
+  fclose(tarefas);
+  fclose(temporario);
+
+  remove("Tarefas.txt");
+  rename("Temporario.txt", "Tarefas.txt");
+
+  printf("Tarefa excluída com sucesso!\n");
+}
+int main(){
+  time_t tempo_atual;
+  struct tm *tempo_local;
+  char tempo_de_criacao[50];
+  char *ptr_tempo_de_criacao;
+
+  // Obter tempo atual
+  tempo_atual = time(NULL);
+  tempo_local = localtime(&tempo_atual);
+  
+  // Normalizar a data (ajustar se o dia se tornar negativo)
+  mktime(tempo_local);
+  
+  // Subtrair 9 dias, 5 meses, 2023 ano para obter a data de criação do programa.
+  tempo_local->tm_mday -= 9;
+  tempo_local->tm_mon -= 5;
+  tempo_local->tm_year -= 2023;
+
+   // Verificar se o ano e o mês são iguais a maio de 2023
+  if (tempo_local->tm_year == 123 || tempo_local->tm_mon == 5) {
+    // Não mostrar o ano nem o mês
+    strftime(tempo_de_criacao, sizeof(tempo_de_criacao), "%d dias", tempo_local);
+  } 
+  else {
+    // Mostrar o ano e o mês
+    strftime(tempo_de_criacao, sizeof(tempo_de_criacao), "%d dias %m meses %Y anos", tempo_local);
+  }
+
+  // Alocar memória para ptr_tempo_de_criacao e copiar conteúdo de tempo_de_criacao
+  ptr_tempo_de_criacao = malloc(strlen(tempo_de_criacao) + 1);
+  strcpy(ptr_tempo_de_criacao, tempo_de_criacao);
+
+  while(1){
+    int ops=menu();
+    if(ops==1){
+          system("clear"); //para limpar o terminal
+          int contador = 0;
+          int posicao_tarefa,num_task,num_linha,edit;        
+      
+          printf("Opção 1: Adicionar\n");
+          Adicionar();
+      }
+    else if (ops==2){ 
+          system("clear"); //para limpar o terminal
+          printf("Opção 2: Visualizar\n");
+          Visualizar();
+          // sleep(5); //espera 5 segundos antes de limpar o terminal
+      for(int i=5;i>=1;i--){ //looping para esperar 5 segundos antes de limpar o terminal finalizando a exibição e retornando para o menu;
+          system("clear"); //limpa o terminal
+          Visualizar(); //reimprime a lista para aparecer apenas a contagem regressiva dos segundos;
+          printf("____________________________________");
+          printf("\nA visualização se fechará em: \n");
+          if(i>1){
+           printf("%d segundos\n",i);
+            sleep(1); 
+            } 
+          else{
+            printf("%d segundo\n",i);
+            sleep(1); 
+          }
+        }   
+      system("clear"); //para limpar o terminal
+    }
+    else if (ops==3){
+         system("clear"); //para limpar o terminal
+         printf("Opção 3: Editar\n");
+         Visualizar();
+         Editar();
+         for(int i=5;i>=1;i--){ //looping para esperar 5 segundos antes de limpar o terminal finalizando a exibição e retornando para o menu;
+          system("clear"); //limpa o terminal
+          printf("\nO modo Edição se fechará em: ");
+          if(i>1){
+           printf("%d segundos",i);
+            sleep(1); 
+            } 
+          else{
+            printf("%d segundo",i);
+            sleep(1); 
+          }
+          system("clear"); //para limpar o terminal
+        }
+      
+      }
+    else if (ops == 4) {
+      system("clear"); //para limpar o terminal
+      const char* nomeArquivo = "Tarefas.txt";
+      int numero_tarefa;
+      printf("Opção 4: Excluir\n");
+      Visualizar();
+      printf("\n");
+      printf("_____________________________________________________\n");
+      printf("Digite o número da tarefa a ser excluída: ");
+      scanf("%d", &numero_tarefa);
+      Excluir(numero_tarefa);
+      printf("\n");
+      atualizadorTarefas();
+      system("clear"); //para limpar o terminal
+    
+      // Limpar o buffer de entrada
+      int c;
+      while ((c = getchar()) != '\n' && c != EOF);
+          system("clear"); //para limpar o terminal
+        }
+    else if (ops==5){
+      system("clear"); //para limpar o terminal
+      printf("Você selecionou a opção \"Sair\"\n");
+      sleep(1); 
+      printf("Fim do programa de tarefas.");
+      sleep(1); 
+      printf(".");
+      sleep(1); 
+      printf(".\n");
+      printf("Espero que tenha gostado do programa!\n");
+      printf("Feito por: ");
+      sleep(1); 
+      printf("Joaquim Jonkel Magalhães Melo Junior\n");
+      sleep(1);
+      printf("Tempo estimado de criação do programa: ");
+      printf("%s\n",ptr_tempo_de_criacao);
+      free(ptr_tempo_de_criacao);  // Libera a memória alocada
+      return 0;
+    }
+  }
+}
